@@ -21,7 +21,7 @@ def min_max_normalize_per_channel(data):
     return normalized_data
 
 class SARDataset(Dataset):
-    def __init__(self,image_root,label_root,mode='train',val_size=0.2):
+    def __init__(self,image_root,label_root,mode='train',val_size=0.2,seed=42):
         self.mode=mode
         images_list = sorted(list(glob(image_root + "*")))
         label_list = sorted(list(glob(label_root + "*")))
@@ -31,7 +31,7 @@ class SARDataset(Dataset):
             label_list,
             test_size=val_size,
             #stratify=label_list,
-            random_state=42,
+            random_state=seed,
         )
         self.images_train =   sorted(images_train)
         self.images_val   =   sorted(images_val)
@@ -66,7 +66,7 @@ class SARDataset(Dataset):
         }
         return data
 
-def build_dataloader(batch_size=4,num_workers=2):
+def build_dataloader(batch_size=4,num_workers=2,val_size=0.2,seed=42):
     DATASET_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/'
     TRACK1_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track1/'
     TRACK2_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track2/'    
@@ -74,12 +74,16 @@ def build_dataloader(batch_size=4,num_workers=2):
     train_dataset=SARDataset(
         image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",
         label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/labels/",
-        mode='train'
+        mode='train',
+        val_size=val_size,
+        seed=seed,
     )
     val_dataset=SARDataset(
         image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",
         label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/labels/",
-        mode='val'
+        mode='val',
+        val_size=val_size,
+        seed=seed,
     )
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size,
@@ -92,15 +96,16 @@ def main():
     train_dataset=SARDataset(
         image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",
         label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/labels/",
-        mode='train'
+        mode='train',
+        val_size=1e-10
     )
     val_dataset=SARDataset(
         image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",
         label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/labels/",
-        mode='val'
+        mode='val',
+        val_size=1e-10
     )
     for i in tqdm(train_dataset):
-        ipdb.set_trace()
         print(i)
     for i in tqdm(val_dataset):
         pass

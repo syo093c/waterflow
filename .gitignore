@@ -167,3 +167,4 @@ waterflow/
 *.jpg
 *.png
 *.zip
+weights/
