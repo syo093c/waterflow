@@ -33,7 +33,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 def main():
     debug=True
-    train_data_aug=False
+    train_data_aug=True
     val_size=0.2
     if train_data_aug:
         data_transforms = {
@@ -53,7 +53,7 @@ def main():
                 p=1.0,
             ),
         }
-        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1,data_transforms=data_transforms)
+        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1,data_transforms=data_transforms['train'])
     else:
         train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1)
 
