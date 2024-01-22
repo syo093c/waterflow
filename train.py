@@ -34,17 +34,17 @@ from lightning.pytorch.loggers import TensorBoardLogger
 def main():
     debug=False
 
-    train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=1e-10,seed=0)
+    train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=1e-10,seed=1)
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6, encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='resnet101', encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest101e', encoder_weights="imagenet")
-    unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
-    #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-efficientnet-b8', encoder_weights="imagenet")
+    #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
+    unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-efficientnet-b8', encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='pspnet',classes=2,in_channels=6,encoder_name='timm-resnest101e', encoder_weights="imagenet")
     wrapper_model = WrapperModel(model=unet_pp,train_dataloader=train_dataloader,val_dataloader=val_dataloader)
     lr_monitor = LearningRateMonitor(logging_interval="step")
     #checkpoint_callback = ModelCheckpoint(monitor='train/valid_loss',save_top_k=3)
-    checkpoint_callback = ModelCheckpoint(save_top_k=-1,every_n_epochs=5)
+    checkpoint_callback = ModelCheckpoint(save_top_k=-1,every_n_epochs=15)
 
     if not debug:
         logger = WandbLogger(project="waterflow", name="unet_pp_1")

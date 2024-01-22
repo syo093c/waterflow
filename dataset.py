@@ -21,10 +21,11 @@ def min_max_normalize_per_channel(data):
     return normalized_data
 
 class SARDataset(Dataset):
-    def __init__(self,image_root,label_root,mode='train',val_size=0.2,seed=42):
+    def __init__(self,image_root,label_root,data_transforms=None,mode='train',val_size=0.2,seed=42):
         self.mode=mode
         images_list = sorted(list(glob(image_root + "*")))
         label_list = sorted(list(glob(label_root + "*")))
+        self.transforms=data_transforms
 
         images_train, images_val, labels_train, labels_val = train_test_split(
             images_list,
@@ -59,6 +60,15 @@ class SARDataset(Dataset):
         sar_data=sar_data.read()
         #sar_data[sar_data<0]=0
         #sar_data=min_max_normalize_per_channel(sar_data)
+        
+        #data augmentation
+        if self.transforms:
+            sar_data=np.transpose(sar_data, (1, 2, 0))
+            transformed_data = self.transforms(image=sar_data,mask=label_map)
+
+            sar_data=transformed_data['image']
+            sar_data=np.transpose(sar_data, (2, 0, 1))
+            label_map=transformed_data['mask']
 
         data= {
             'data': torch.tensor(sar_data,dtype=torch.float32),
