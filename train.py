@@ -32,9 +32,9 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 
 def main():
-    debug=False
-
+    debug=True
     train_data_aug=False
+    val_size=0.2
     if train_data_aug:
         data_transforms = {
             "train": A.Compose(
@@ -53,12 +53,9 @@ def main():
                 p=1.0,
             ),
         }
-        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=1e-10,seed=1,data_transforms=data_transforms)
+        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1,data_transforms=data_transforms)
     else:
-        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=1e-10,seed=1)
-
-
-
+        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1)
 
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6, encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='resnet101', encoder_weights="imagenet")
