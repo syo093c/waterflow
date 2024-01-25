@@ -45,6 +45,33 @@ class SARDataset(Dataset):
         elif self.mode=='val':
             return len(self.images_val)
 
+    def _sar_normalization(self,sar_data):
+        """
+            normalize the data to (0, 1).
+
+            Band 1: SAR image, VV
+            Band 2: SAR image, VH
+            Band 3: Merit DEM
+            Band 4: Copernicus DEM
+            Band 5: ESA World Cover Map
+            Band 6: Water occurrence probability
+
+            # 1: 0-32765        x/32765
+            # 2:                x/32765
+            # 3: -9999:9999     (x+9999)/(9999*2)
+            # 4: 0-100          x/100
+            # 5: 0-255          x/255
+        """
+        sar_data=sar_data.astype(np.float32)
+        sar_data[0]=sar_data[0]/32765
+        sar_data[1]=sar_data[1]/32765
+        sar_data[2]=(sar_data[2]+9999)/(9999*2)
+        sar_data[3]=(sar_data[3]+9999)/(9999*2)
+        sar_data[4]=sar_data[4]/100
+        sar_data[5]=sar_data[5]/255
+
+        return sar_data
+
     def __getitem__(self, index):
         if self.mode=='train':
             fpath=self.images_train[index]
@@ -56,12 +83,15 @@ class SARDataset(Dataset):
         # sar_data = rasterio.open(fpath,dtype=rasterio.uint8)
         sar_data = rasterio.open(fpath)
         label_map = np.array(Image.open(lpath))
-        
+
         sar_data=sar_data.read()
-        #sar_data[sar_data<0]=0
-        #sar_data=min_max_normalize_per_channel(sar_data)
-        
-        #data augmentation
+        # normalization
+        sar_data=self._sar_normalization(sar_data)
+
+        # sar_data[sar_data<0]=0
+        # sar_data=min_max_normalize_per_channel(sar_data)
+
+        # data augmentation
         if self.transforms:
             sar_data=np.transpose(sar_data, (1, 2, 0))
             transformed_data = self.transforms(image=sar_data,mask=label_map)
@@ -70,9 +100,12 @@ class SARDataset(Dataset):
             sar_data=np.transpose(sar_data, (2, 0, 1))
             label_map=transformed_data['mask']
 
-        data= {
-            'data': torch.tensor(sar_data,dtype=torch.float32),
-            'label':torch.tensor(label_map,dtype=torch.long),
+        # normalization
+        #sar_data=self._sar_normalization(sar_data)
+
+        data = {
+            "data": torch.tensor(sar_data, dtype=torch.float32),
+            "label": torch.tensor(label_map, dtype=torch.long),
         }
         return data
 

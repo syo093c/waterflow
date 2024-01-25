@@ -32,7 +32,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 
 def main():
-    debug=True
+    debug=False
     train_data_aug=True
     val_size=0.2
     if train_data_aug:
@@ -41,18 +41,22 @@ def main():
                 [
                     A.HorizontalFlip(p=0.5),
                     A.VerticalFlip(p=0.5),
+                    A.GridDistortion(p=0.2),
+                    A.RandomResizedCrop(p=0.2,width=512,height=512),
+
                     A.OneOf(
                         [
                             A.GaussianBlur(),
-                            #A.GaussNoise(var_limit=[10,50]),
+                            A.GaussNoise(var_limit=(0,2e-8),mean=0,per_channel=True),
                         ],
-                        p=0.1,
+                        p=0.2,
                     ),
                     #ToTensorV2(),
                 ],
                 p=1.0,
             ),
         }
+
         train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1,data_transforms=data_transforms['train'])
     else:
         train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1)
@@ -60,8 +64,8 @@ def main():
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6, encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='resnet101', encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest101e', encoder_weights="imagenet")
-    #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
-    unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-efficientnet-b8', encoder_weights="imagenet")
+    unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
+    #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-efficientnet-b8', encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='pspnet',classes=2,in_channels=6,encoder_name='timm-resnest101e', encoder_weights="imagenet")
     wrapper_model = WrapperModel(model=unet_pp,train_dataloader=train_dataloader,val_dataloader=val_dataloader)
     lr_monitor = LearningRateMonitor(logging_interval="step")
