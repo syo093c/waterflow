@@ -9,16 +9,6 @@ import numpy as np
 from tqdm.auto import tqdm
 
 
-def min_max_normalize_per_channel(data):
-    min_vals = np.min(data, axis=(1, 2), keepdims=True)  # 计算每个通道的最小值
-    max_vals = np.max(data, axis=(1, 2), keepdims=True)  # 计算每个通道的最大值
-
-    # 添加容错处理，如果最小值和最大值相等（即所有值都是0），则将最大值设置为1
-    max_vals[max_vals == min_vals] = 1
-
-    normalized_data = (data - min_vals) / (max_vals - min_vals)
-    ipdb.set_trace()
-    return normalized_data
 
 class SARDataset(Dataset):
     def __init__(self,image_root,label_root,data_transforms=None,mode='train',val_size=0.2,seed=42):

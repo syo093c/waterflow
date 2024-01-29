@@ -36,26 +36,53 @@ def main():
     train_data_aug=True
     val_size=0.2
     if train_data_aug:
+        #data_transforms = {
+        #    "train": A.Compose(
+        #        [
+        #            A.HorizontalFlip(p=0.5),
+        #            A.VerticalFlip(p=0.5),
+        #            A.GridDistortion(p=0.2),
+        #            A.RandomResizedCrop(p=0.2,width=512,height=512),
+        #            A.OneOf(
+        #                [
+        #                    A.GaussianBlur(),
+        #                    A.GaussNoise(var_limit=(0,2e-8),mean=0,per_channel=True),
+        #                ],
+        #                p=0.2,
+        #            ),
+        #            #ToTensorV2(),
+        #        ],
+        #        p=1.0,
+        #    ),
+        #}
         data_transforms = {
-            "train": A.Compose(
-                [
-                    A.HorizontalFlip(p=0.5),
-                    A.VerticalFlip(p=0.5),
-                    A.GridDistortion(p=0.2),
-                    A.RandomResizedCrop(p=0.2,width=512,height=512),
-
-                    A.OneOf(
-                        [
-                            A.GaussianBlur(),
-                            A.GaussNoise(var_limit=(0,2e-8),mean=0,per_channel=True),
-                        ],
-                        p=0.2,
-                    ),
-                    #ToTensorV2(),
-                ],
-                p=1.0,
-            ),
-        }
+        "train": A.Compose(
+            [
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.5),
+                A.OneOf(
+                    [
+                        A.Rotate(limit=90),
+                        A.Rotate(limit=-90),
+                        A.Rotate(limit=180),
+                        A.Rotate(limit=-180),
+                    ],
+                    p=0.5,
+                ),
+                A.RandomResizedCrop(p=0.2, width=512, height=512),
+                A.OneOf([A.GridDistortion(), A.OpticalDistortion()], p=0.2),
+                A.OneOf(
+                    [
+                        A.GaussianBlur(),
+                        A.GaussNoise(var_limit=(0, 2e-8), mean=0, per_channel=True),
+                    ],
+                    p=0.2,
+                ),
+                # ToTensorV2(),
+            ],
+            p=1.0,
+        ),
+    }
 
         train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1,data_transforms=data_transforms['train'])
     else:
