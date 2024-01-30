@@ -84,7 +84,7 @@ def main():
         ),
     }
 
-        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1,data_transforms=data_transforms['train'])
+        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=1e-10,seed=1,data_transforms=data_transforms['train'])
     else:
         train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.2,seed=1)
 
