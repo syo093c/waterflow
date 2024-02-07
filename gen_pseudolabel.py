@@ -16,6 +16,8 @@ import os
 from torch import nn
 import albumentations as A
 
+import ipdb
+
 def _trans_vec(vec):
     vec=np.transpose(vec, (2, 0, 1))
     return vec
@@ -127,38 +129,24 @@ def _sar_normalization(sar_data):
 
     return sar_data
 
-def main1():
+def main():
     # normalization
     NORMALIZATION=True
     # TTA
     TTA=True
 
-    output_path='./submit/'
+    output_path='./val_pseudo_label/'
     if not os.path.exists(output_path):
         os.mkdir(output_path)
-
-    #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6)
-    #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='resnet101', encoder_weights="imagenet") 
-    #model=WrapperModel.load_from_checkpoint('/home/syo/epoch=105-step=8692.ckpt',model=unet_pp,mode='test')
-    #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest101e', encoder_weights="imagenet")
-    #model=WrapperModel.load_from_checkpoint('/home/syo/epoch=78-step=8611.ckpt',model=unet_pp,mode='test')
 
     unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
     model1=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/nor-aug3-unetpp-800e-timm-resnest269e-server2/epoch=795-step=146464.ckpt',model=unet_pp,mode='test',map_location=torch.device("cuda"))
     model1.eval()
 
-#    unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-efficientnet-b8', encoder_weights="imagenet")
-#    model2=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/nor-aug3-unetpp-300e-timm-efnet269e-server2/epoch=299-step=48900.ckpt',model=unet_pp,mode='test')
-#    model2.eval()
-#
-#    unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
-#    model3=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/nor-aug3-unetpp-300e-timm-resnest269e-server2/epoch=299-step=48900.ckpt',model=unet_pp,mode='test',map_location=torch.device("cuda"))
-#    model3.eval()
-#
     image_root=pathlib.Path('/home/syo/work/2024_IEEE_GRSS/dataset/Track1/val/images/')
     #image_root=pathlib.Path('/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/')
     images_list = sorted(list(image_root.glob('*')))
-    thred=0.5
+    thred=0.47
 
     for i in tqdm(images_list):
         sar_data = rasterio.open(i).read()
@@ -190,31 +178,6 @@ def main1():
         bmap_img=Image.fromarray(binary_map,'L')
         bmap_img.save(output_path+nid+'.png')
 
-# def main():
-#    output_path='./submit/'
-#    if not os.path.exists(output_path):
-#        os.mkdir(output_path)
-#
-#    unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='resnet101', encoder_weights="imagenet")
-#    model=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/waterflow/y0c9tylo/checkpoints/epoch=299-step=55200.ckpt',model=unet_pp,mode='test')
-#    model.eval()
-#
-#    train_dataset=SARDataset(
-#        image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",
-#        label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/labels/",
-#        mode='train'
-#    )
-#
-#    for batch in tqdm(train_dataset):
-#        data = batch["data"].unsqueeze(0).cuda()
-#        label=batch['label'].unsqueeze(0).cuda()
-#        with torch.no_grad():
-#            outputs = model.forward(data)
-#            loss = nn.CrossEntropyLoss(reduction='sum')(input=outputs, target=label)
-#            ipdb.set_trace()
-#            print(label)
-#            print(loss)
-#        # binary_map = (preds[:,1,:,:] > thred).astype(int)[0]
 
 if __name__ == "__main__":
-    main1()
+    main()
