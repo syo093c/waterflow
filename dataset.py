@@ -124,6 +124,31 @@ def build_dataloader(batch_size=4,num_workers=2,val_size=0.2,seed=42,data_transf
     val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=num_workers, shuffle=False, pin_memory=True)
     return train_dataloader,val_dataloader
 
+def build_dataloader_w_pseudo(batch_size=4,num_workers=2,val_size=0.2,seed=42,data_transforms=None):
+    DATASET_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/'
+    TRACK1_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track1_w_pseudo/'
+    TRACK2_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track2_w_pseudo/'    
+
+    train_dataset=SARDataset(
+        image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1_w_pseudo/train/images/",
+        label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1_w_pseudo/train/labels/",
+        mode='train',
+        val_size=val_size,
+        seed=seed,
+        data_transforms=data_transforms
+    )
+    val_dataset=SARDataset(
+        image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1_w_pseudo/train/images/",
+        label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1_w_pseudo/train/labels/",
+        mode='val',
+        val_size=val_size,
+        seed=seed,
+    )
+
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=num_workers, shuffle=False, pin_memory=True)
+    return train_dataloader,val_dataloader
+
 def main():
     train_dataset=SARDataset(
         image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",

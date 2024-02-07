@@ -19,7 +19,7 @@ from timm.models.registry import model_entrypoint
 import pickle
 import torch.nn.functional as F
 
-from dataset import build_dataloader
+from dataset import build_dataloader,build_dataloader_w_pseudo
 from model import WrapperModel
 from lightning.pytorch.loggers import WandbLogger
 
@@ -84,9 +84,9 @@ def main():
         ),
     }
 
-        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.1,seed=42,data_transforms=data_transforms['train'])
+        train_dataloader, val_dataloader = build_dataloader_w_pseudo(batch_size=8,num_workers=4,val_size=0.1,seed=42,data_transforms=data_transforms['train'])
     else:
-        train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.1,seed=42)
+        train_dataloader, val_dataloader = build_dataloader_w_pseudo(batch_size=8,num_workers=4,val_size=0.1,seed=42)
 
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6, encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='resnet101', encoder_weights="imagenet")
