@@ -24,9 +24,10 @@ def calculate_f1_score(predicted_map, ground_truth_map):
     return f1
 
 class WrapperModel(L.LightningModule):
-    def __init__(self, model, mode='train',train_dataloader=None, val_dataloader=None) -> None:
+    def __init__(self, model, mode='train',learning_rate=1e-5,train_dataloader=None, val_dataloader=None) -> None:
         super().__init__()
         self.model = model
+        self.learning_rate = learning_rate
         # self.loss_fn=nn.BCEWithLogitsLoss()
         self.loss_fn = nn.CrossEntropyLoss()
         if mode=='test':
@@ -52,7 +53,7 @@ class WrapperModel(L.LightningModule):
         steps_per_ep = len(self.train_dl)
         train_steps = len(self.train_dl) * self.trainer.max_epochs  # max epouch 100
         # optimizer = optim.AdamW(self.parameters(), lr=1e-5)
-        optimizer = optim.AdamW(self.parameters(), lr=1e-5)
+        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
         lr_scheduler = get_cosine_schedule_with_warmup(
             optimizer,
             num_warmup_steps=int(steps_per_ep * self.trainer.max_epochs * 0.05),
@@ -93,7 +94,7 @@ class WrapperModel(L.LightningModule):
         return precision, recall, f1_score
 
     def on_validation_epoch_end(self):
-        step=20
+        step=2
         if self.current_epoch % step == step-1:
         #if self.current_epoch >= self.trainer.max_epochs -1:
         #if True:

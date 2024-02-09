@@ -168,3 +168,4 @@ waterflow/
 *.png
 *.zip
 weights/
+.*
