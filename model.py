@@ -5,6 +5,7 @@ import torchvision
 import timm
 from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from transformers import get_cosine_schedule_with_warmup
+from transformers import get_polynomial_decay_schedule_with_warmup
 from torch import optim
 import ipdb
 import numpy as np
@@ -53,12 +54,15 @@ class WrapperModel(L.LightningModule):
         steps_per_ep = len(self.train_dl)
         train_steps = len(self.train_dl) * self.trainer.max_epochs  # max epouch 100
         # optimizer = optim.AdamW(self.parameters(), lr=1e-5)
-        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate)
-        lr_scheduler = get_cosine_schedule_with_warmup(
-            optimizer,
-            num_warmup_steps=int(steps_per_ep * self.trainer.max_epochs * 0.05),
-            num_training_steps=train_steps,
-        )
+        optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate,betas=(0.9, 0.999), weight_decay=0.05)
+        #lr_scheduler = get_cosine_schedule_with_warmup(
+        #    optimizer,
+        #    num_warmup_steps=int(steps_per_ep * self.trainer.max_epochs * 0.03),
+        #    num_training_steps=train_steps,
+        #)
+        lr_scheduler= get_polynomial_decay_schedule_with_warmup(
+            optimizer=optimizer,num_warmup_steps=int(steps_per_ep*self.trainer.max_epochs * 0.03),
+            num_training_steps=train_steps)
         return [optimizer], [
             {"scheduler": lr_scheduler, "interval": "step", "frequency": 1}
         ]
@@ -94,7 +98,7 @@ class WrapperModel(L.LightningModule):
         return precision, recall, f1_score
 
     def on_validation_epoch_end(self):
-        step=2
+        step=19
         if self.current_epoch % step == step-1:
         #if self.current_epoch >= self.trainer.max_epochs -1:
         #if True:
