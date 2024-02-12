@@ -1,0 +1,3 @@
+[submodule "kaggle_contrails_solution"]
+	path = kaggle_contrails_solution
+	url = https://github.com/syo093c/kaggle_contrails_solution.git

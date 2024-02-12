@@ -94,8 +94,9 @@ class SARDataset(Dataset):
         #sar_data=self._sar_normalization(sar_data)
 
         data = {
+            # c, w, h
             "data": torch.tensor(sar_data, dtype=torch.float32),
-            "label": torch.tensor(label_map, dtype=torch.long),
+            "label": torch.tensor(label_map, dtype=torch.float32).unsqueeze(0),
         }
         return data
 

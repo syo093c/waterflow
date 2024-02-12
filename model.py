@@ -29,8 +29,7 @@ class WrapperModel(L.LightningModule):
         super().__init__()
         self.model = model
         self.learning_rate = learning_rate
-        # self.loss_fn=nn.BCEWithLogitsLoss()
-        self.loss_fn = nn.CrossEntropyLoss()
+        self.loss_fn=nn.BCEWithLogitsLoss()
         if mode=='test':
             return
         self.train_dl = train_dataloader
@@ -87,14 +86,12 @@ class WrapperModel(L.LightningModule):
             for batch in ds:
                 data = batch["data"].unsqueeze(0).cuda()
                 outputs = self.forward(data)
-                outputs = F.softmax(outputs)
-                # outputs = F.sigmoid(outputs)
+                outputs = F.sigmoid(outputs)
                 preds.append(outputs.detach().cpu().numpy())
                 labels.append(batch['label'].unsqueeze(0).detach().cpu().numpy())
         preds = np.vstack(preds)
         labels = np.vstack(labels)
-
-        binary_map = (preds[:,1,:,:] > thred).astype(int)
+        binary_map = (preds > thred).astype(int)
         precision, recall, f1_score, _ = precision_recall_fscore_support(labels.flatten(), binary_map.flatten(), average='binary')
         return precision, recall, f1_score
 
