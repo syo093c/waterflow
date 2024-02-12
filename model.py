@@ -62,7 +62,8 @@ class WrapperModel(L.LightningModule):
         #)
         lr_scheduler= get_polynomial_decay_schedule_with_warmup(
             optimizer=optimizer,num_warmup_steps=int(steps_per_ep*self.trainer.max_epochs * 0.03),
-            num_training_steps=train_steps)
+            num_training_steps=train_steps,
+            power=3)
         return [optimizer], [
             {"scheduler": lr_scheduler, "interval": "step", "frequency": 1}
         ]

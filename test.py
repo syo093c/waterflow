@@ -144,7 +144,7 @@ def main1():
     #model=WrapperModel.load_from_checkpoint('/home/syo/epoch=78-step=8611.ckpt',model=unet_pp,mode='test')
 
     unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
-    model1=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/psesudo-nor-aug3.1-unetpp-800e-timm-resnest269e-0.9data-server2/epoch=795-step=177508.ckpt',model=unet_pp,mode='test',map_location=torch.device("cuda"))
+    model1=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/test/epoch=198-step=46765.ckpt',model=unet_pp,mode='test',map_location=torch.device("cuda"))
     model1.eval()
 
 #    unet_pp=smp.create_model(arch='unetplusplus',classes=2,in_channels=6,encoder_name='timm-efficientnet-b8', encoder_weights="imagenet")
