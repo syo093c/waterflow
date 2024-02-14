@@ -48,12 +48,12 @@ class WrapperModel(L.LightningModule):
         output = self.forward(input)
         bce_loss = self.bce_logit_loss(input=output, target=label)
         dice_loss = self.dice_loss(y_pred=output, y_true=label)
-        loss=bce_loss+dice_loss
+        loss=0.25*bce_loss+0.75*dice_loss
         self.log("train/loss", loss)
         self.log("train/bce_loss", bce_loss)
         self.log("train/dice_loss", dice_loss)
         # self.log("lr",self.lr_schedulers().get_lr()[0])
-        return dice_loss
+        return loss
 
     def configure_optimizers(self):
         steps_per_ep = len(self.train_dl)
@@ -80,7 +80,7 @@ class WrapperModel(L.LightningModule):
 
         bce_loss = self.bce_logit_loss(input=output, target=label)
         dice_loss = self.dice_loss(y_pred=output, y_true=label)
-        loss=bce_loss+dice_loss
+        loss=0.25*bce_loss+0.75*dice_loss
         self.log("valid/loss", loss)
         self.log("valid/bce_loss", bce_loss)
         self.log("valid/dice_loss", dice_loss)
@@ -107,7 +107,7 @@ class WrapperModel(L.LightningModule):
         return precision, recall, f1_score
 
     def on_validation_epoch_end(self):
-        step=49
+        step=19
         if self.current_epoch % step == step-1:
         #if self.current_epoch >= self.trainer.max_epochs -1:
         #if True:

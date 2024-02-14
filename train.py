@@ -89,20 +89,20 @@ def main():
     else:
         train_dataloader, val_dataloader = build_dataloader(batch_size=8,num_workers=4,val_size=0.1,seed=42)
 
-    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_tiny_tf_512', encoder_weights="imagenet")
+    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
     #unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-efficientnet-b3', encoder_weights="imagenet")
     wrapper_model = WrapperModel(model=unet_pp,train_dataloader=train_dataloader,val_dataloader=val_dataloader,learning_rate=1e-4)
     lr_monitor = LearningRateMonitor(logging_interval="step")
     #checkpoint_callback = ModelCheckpoint(monitor='train/valid_loss',save_top_k=3)
-    checkpoint_callback = ModelCheckpoint(save_top_k=-1,every_n_epochs=199)
+    checkpoint_callback = ModelCheckpoint(save_top_k=-1,every_n_epochs=99)
 
     if not debug:
         logger = WandbLogger(project="waterflow", name="unet_pp_1")
     else:
         logger = TensorBoardLogger("waterflow", name="unet_pp_1")
         
-    trainer = L.Trainer(max_epochs=800, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,checkpoint_callback],log_every_n_steps=1,accumulate_grad_batches=1)
+    trainer = L.Trainer(max_epochs=400, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,checkpoint_callback],log_every_n_steps=1,accumulate_grad_batches=1)
     
     trainer.fit(model=wrapper_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
@@ -116,5 +116,5 @@ def seed_everything(seed):
     torch.backends.cudnn.benchmark = True
 
 if __name__ == "__main__":
-    seed_everything(2024)
+    seed_everything(42)
     main()
