@@ -62,8 +62,8 @@ class WrapperModel(L.LightningModule):
         optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate,betas=(0.9, 0.999), weight_decay=0.05)
         lr_scheduler = get_cosine_schedule_with_warmup(
             optimizer,
-            num_warmup_steps=int(steps_per_ep * self.trainer.max_epochs * 0.03),
-            num_training_steps=train_steps,
+            num_warmup_steps=int(steps_per_ep * self.trainer.max_epochs * 0.03/self.trainer.accumulate_grad_batches),
+            num_training_steps=int(train_steps/self.trainer.accumulate_grad_batches),
         )
         #lr_scheduler= get_polynomial_decay_schedule_with_warmup(
         #    optimizer=optimizer,num_warmup_steps=int(steps_per_ep*self.trainer.max_epochs * 0.03),

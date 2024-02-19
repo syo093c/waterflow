@@ -15,90 +15,7 @@ import pathlib
 import os
 from torch import nn
 import albumentations as A
-
-def _trans_vec(vec):
-    vec=np.transpose(vec, (2, 0, 1))
-    return vec
-
-def tta(model,input_data):
-    """
-    input_data: batch_size, channel, w, h
-    """
-
-    tta_out=[]
-    input_data=np.transpose(input_data, (1, 2, 0))
-
-    data_transforms = {
-        "horizon": A.Compose([A.HorizontalFlip(p=1,),]),
-        "vertical": A.Compose([A.VerticalFlip(p=1)]),
-        "r90": A.Compose([A.Rotate(limit=(90,90),p=1)]),
-        "rn90": A.Compose([A.Rotate(limit=(-90,-90),p=1)]),
-        "rn180": A.Compose([A.Rotate(limit=(-180,-180),p=1)]),
-    }
-
-    horizon_fliped =    _trans_vec(data_transforms["horizon"](image=input_data)["image"])
-    vertical_fliped =   _trans_vec(data_transforms["vertical"](image=input_data)["image"])
-    r90 =               _trans_vec(data_transforms["r90"](image=input_data)["image"])
-    rn90 =              _trans_vec(data_transforms["rn90"](image=input_data)["image"])
-    rn180 =             _trans_vec(data_transforms["rn180"](image=input_data)["image"])
-    raw_input =        _trans_vec(input_data)
-
-    # raw
-    input=torch.tensor(raw_input,dtype=torch.float32).unsqueeze(0).cuda()
-    output=model.forward(input)
-    output = F.sigmoid(output).squeeze(0)
-    preds=output.detach().cpu().numpy()
-    tta_out.append(preds)
-
-    # horizon
-    input=torch.tensor(horizon_fliped,dtype=torch.float32).unsqueeze(0).cuda()
-    output=model.forward(input)
-    output = F.sigmoid(output).squeeze(0)
-    preds=output.detach().cpu().numpy()
-    preds=np.transpose(preds, (1, 2, 0))    
-    preds=_trans_vec(data_transforms['horizon'](image=preds)['image'])
-    tta_out.append(preds)
-
-    # vertical
-    input=torch.tensor(vertical_fliped,dtype=torch.float32).unsqueeze(0).cuda()
-    output=model.forward(input)
-    output = F.sigmoid(output).squeeze(0)
-    preds=output.detach().cpu().numpy()
-    preds=np.transpose(preds, (1, 2, 0))    
-    preds=_trans_vec(data_transforms['vertical'](image=preds)['image'])
-    tta_out.append(preds)
-
-    # 90
-    input=torch.tensor(r90,dtype=torch.float32).unsqueeze(0).cuda()
-    output=model.forward(input)
-    output = F.sigmoid(output).squeeze(0)
-    preds=output.detach().cpu().numpy()
-    preds=np.transpose(preds, (1, 2, 0))    
-    preds=_trans_vec(data_transforms['rn90'](image=preds)['image'])
-    tta_out.append(preds)
-
-    # -90
-    input=torch.tensor(rn90,dtype=torch.float32).unsqueeze(0).cuda()
-    output=model.forward(input)
-    output = F.sigmoid(output).squeeze(0)
-    preds=output.detach().cpu().numpy()
-    preds=np.transpose(preds, (1, 2, 0))    
-    preds=_trans_vec(data_transforms['r90'](image=preds)['image'])
-    tta_out.append(preds)
-
-    # -180
-    input=torch.tensor(rn180,dtype=torch.float32).unsqueeze(0).cuda()
-    output=model.forward(input)
-    output = F.sigmoid(output).squeeze(0)
-    preds=output.detach().cpu().numpy()
-    preds=np.transpose(preds, (1, 2, 0))    
-    preds=_trans_vec(data_transforms['rn180'](image=preds)['image'])
-    tta_out.append(preds)
-
-    # mean preds
-    mean_pred = np.mean(tta_out, axis=0)
-    return torch.tensor(mean_pred).numpy()
-
+import ttach as tta
 
 def _sar_normalization(sar_data):
     """
@@ -132,26 +49,41 @@ def main():
     NORMALIZATION=True
     # TTA
     TTA=True
+    transforms = tta.Compose(
+    [
+        tta.HorizontalFlip(),
+        tta.VerticalFlip(),
+        tta.Rotate90(angles=[0, 90,180,270]),
+        #tta.Scale(scales=[1, 2, 4]),
+        #tta.Multiply(factors=[0.9, 1, 1.1]),        
+    ]
+    )
 
     output_path='./submit/'
     if not os.path.exists(output_path):
         os.mkdir(output_path)
 
-    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
-    model1=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/test/epoch=795-step=187060.ckpt',model=unet_pp,mode='test',map_location=torch.device("cuda"))
+    #unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
+    #model1=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/test/epoch=795-step=187060.ckpt',model=unet_pp,mode='test',map_location=torch.device("cuda"))
+    #model1.eval()
+
+    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_large_tf_512', encoder_weights=None)
+    model1=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/maxvit-800e/epoch=791-step=72864.ckpt',model=unet_pp,mode='test',map_location=torch.device("cuda"))
     model1.eval()
+    if TTA:
+        model1 = tta.SegmentationTTAWrapper(model1, transforms)
+
 
     image_root=pathlib.Path('/home/syo/work/2024_IEEE_GRSS/dataset/Track1/val/images/')
     #image_root=pathlib.Path('/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/')
     images_list = sorted(list(image_root.glob('*')))
-    thred=0.47
+    thred=0.1
 
     for i in tqdm(images_list):
         sar_data = rasterio.open(i).read()
         if NORMALIZATION:
             sar_data=_sar_normalization(sar_data=sar_data)
         with torch.no_grad():
-            if not TTA:
                 sar_data=torch.tensor(sar_data,dtype=torch.float32).unsqueeze(0).cuda()
                 outputs1=model1.forward(sar_data)
                 outputs1 = F.sigmoid(outputs1)
@@ -163,13 +95,7 @@ def main():
                 #outputs3 = F.sigmoid(outputs3)
 
                 #outputs=0.34*outputs1+0.34*outputs2+0.32*outputs3
-                preds=outputs.detach().cpu().numpy()
-            else:
-                preds1=tta(model=model1,input_data=sar_data)
-                preds=preds1
-                #preds2=tta(model=model2,input_data=sar_data)
-                #preds3=tta(model=model3,input_data=sar_data)
-                #preds=0.50*preds1+0.05*preds2+0.45*preds3
+                preds=outputs.detach().cpu().numpy().squeeze(0)
 
         binary_map = (preds > thred).astype(np.uint8)[0]
         nid=i.stem
