@@ -54,6 +54,10 @@ class WrapperModel(L.LightningModule):
         self.log("train/dice_loss", dice_loss)
         # self.log("lr",self.lr_schedulers().get_lr()[0])
         return loss
+        #if self.trainer.current_epoch < self.trainer.max_epochs * 0.4:
+        #    return bce_loss
+        #else:
+        #    return loss
 
     def configure_optimizers(self):
         steps_per_ep = len(self.train_dl)
