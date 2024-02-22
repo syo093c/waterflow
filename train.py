@@ -124,7 +124,8 @@ def main():
     trainer.fit(model=wrapper_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
 def kflod():
-    debug=False
+    import multiprocessing
+    debug=True
     val_size=0.1
 
     ##### datalodar, kflod, train #################
@@ -141,87 +142,102 @@ def kflod():
     kf_l = kf_func.split(images_list)
 
     for i, (train_index, val_index) in enumerate(kf_l):
+        process=multiprocessing.Process(target=train_fn,args=(i,train_index,val_index))
+        process.start()
+        process.join()
+        process.terminate()
         gc.collect()
+        torch.cuda.empty_cache()
+        
 
-        ############ MODEL #####################################
-        #unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
-        unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights="imagenet")
-        wrapper_model = WrapperModel(model=unet_pp,learning_rate=1e-4)
+def train_fn(i,train_index,val_index):
+    debug=False
 
-        data_transforms = {
-            "train": A.Compose(
-                [
-                    A.HorizontalFlip(p=0.5),
-                    A.VerticalFlip(p=0.5),
-                    A.OneOf(
-                        [
-                            A.Rotate(limit=(90,90)),
-                            A.Rotate(limit=(-90,-90)),
-                            A.Rotate(limit=(180,180)),
-                            A.Rotate(limit=(-180,-180)),
-                        ],
-                        p=0.5,
-                    ),
-                    A.OneOf([A.RandomResizedCrop(width=512,height=512),A.RandomGridShuffle()],p=0.3),
-                    A.OneOf([A.GridDistortion(), A.OpticalDistortion()], p=0.3),
-                ],
-                p=1.0,
-            ),
-        }
+    DATASET_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/'
+    TRACK1_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track1/'
+    TRACK2_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track2/'    
+    images_list = sorted(list(glob(TRACK1_ROOT+'train/images/' + "*")))
+    label_list = sorted(list(glob(TRACK1_ROOT+'train/labels/' + "*")))
+
+    ############ MODEL #####################################
+    #unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
+    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights="imagenet")
+    wrapper_model = WrapperModel(model=unet_pp,learning_rate=1e-4)
+
+    data_transforms = {
+        "train": A.Compose(
+            [
+                A.HorizontalFlip(p=0.5),
+                A.VerticalFlip(p=0.5),
+                A.OneOf(
+                    [
+                        A.Rotate(limit=(90,90)),
+                        A.Rotate(limit=(-90,-90)),
+                        A.Rotate(limit=(180,180)),
+                        A.Rotate(limit=(-180,-180)),
+                    ],
+                    p=0.5,
+                ),
+                A.OneOf([A.RandomResizedCrop(width=512,height=512),A.RandomGridShuffle()],p=0.3),
+                A.OneOf([A.GridDistortion(), A.OpticalDistortion()], p=0.3),
+            ],
+            p=1.0,
+        ),
+    }
 
 
-        ############ HOOKS ###########################
-        lr_monitor = LearningRateMonitor(logging_interval="step")
-        progress_bar = RichProgressBar()
-        model_summary = RichModelSummary(max_depth=3)
-        loss_checkpoint_callback = ModelCheckpoint(
-            verbose=True,
-            filename=f"val_loss-" + "epoch_{epoch}-val_loss_{valid/loss:.4f}-score_{score/valid_f1:.4f}",
-            monitor="valid/loss",
-            mode="min",
-            save_top_k=3,
-            save_last=True,
-            save_weights_only=True,
-            auto_insert_metric_name=False,
+    ############ HOOKS ###########################
+    lr_monitor = LearningRateMonitor(logging_interval="step")
+    progress_bar = RichProgressBar()
+    model_summary = RichModelSummary(max_depth=3)
+    loss_checkpoint_callback = ModelCheckpoint(
+        verbose=True,
+        filename=f"val_loss-" + "epoch_{epoch}-val_loss_{valid/loss:.4f}-score_{score/valid_f1:.4f}",
+        monitor="valid/loss",
+        mode="min",
+        save_top_k=3,
+        save_last=True,
+        save_weights_only=True,
+        auto_insert_metric_name=False,
+    )
+    score_checkpoint_callback = ModelCheckpoint(
+        verbose=True,
+        filename=f"val_score-" + "epoch_{epoch}-val_loss_{valid/loss:.4f}-socre_{score/valid_f1:.4f}",
+        monitor="score/train_f1",
+        save_top_k=3,
+        save_weights_only=True,
+        mode="max",
+        auto_insert_metric_name=False,
+    )
+
+    if not debug:
+        #logger = WandbLogger(project="waterflow", name="unet_pp_1")
+        logger = WandbLogger(
+            project="ema-KFP",
+            # log_model="all",
+            name=f"KF{i}",
         )
-        score_checkpoint_callback = ModelCheckpoint(
-            verbose=True,
-            filename=f"val_score-" + "epoch_{epoch}-val_loss_{valid/loss:.4f}-socre_{score/valid_f1:.4f}",
-            monitor="score/train_f1",
-            save_top_k=3,
-            save_weights_only=True,
-            mode="max",
-            auto_insert_metric_name=False,
-        )
+    else:
+        logger = TensorBoardLogger("waterflow", name="unet_pp_1")
 
-        if not debug:
-            #logger = WandbLogger(project="waterflow", name="unet_pp_1")
-            logger = WandbLogger(
-                project="ema-KFP",
-                # log_model="all",
-                name=f"KF{i}",
-            )
-        else:
-            logger = TensorBoardLogger("waterflow", name="unet_pp_1")
+    train_dataset=SARDataset(
+        data=[images_list[i] for i in train_index],
+        targets=[label_list[i] for i in train_index],
+        data_transforms=None,
+    )
+    val_dataset=SARDataset(
+        data=[images_list[i] for i in val_index],
+        targets=[label_list[i] for i in val_index],
+        data_transforms=None,
+    )
 
-        train_dataset=SARDataset(
-            data=[images_list[i] for i in train_index],
-            targets=[label_list[i] for i in train_index],
-            data_transforms=None,
-        )
-        val_dataset=SARDataset(
-            data=[images_list[i] for i in val_index],
-            targets=[label_list[i] for i in val_index],
-            data_transforms=None,
-        )
+    train_dataloader = DataLoader(train_dataset, batch_size=8, num_workers=16, shuffle=True, pin_memory=False, drop_last=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=16, shuffle=False, pin_memory=False)
 
-        train_dataloader = DataLoader(train_dataset, batch_size=8, num_workers=16, shuffle=True, pin_memory=True, drop_last=True)
-        val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=16, shuffle=False, pin_memory=True)
+    trainer = L.Trainer(max_epochs=400, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,loss_checkpoint_callback,score_checkpoint_callback],log_every_n_steps=10,accumulate_grad_batches=1,gradient_clip_val=1)
+    trainer.fit(model=wrapper_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
+    wandb.finish()
 
-        trainer = L.Trainer(max_epochs=400, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,loss_checkpoint_callback,score_checkpoint_callback],log_every_n_steps=10,accumulate_grad_batches=1,gradient_clip_val=1)
-        trainer.fit(model=wrapper_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
-        wandb.finish()
-        gc.collect()
 
 def seed_everything(seed):
     os.environ['PYTHONHASHSEED'] = str(seed)
