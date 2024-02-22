@@ -123,7 +123,7 @@ def main():
     trainer.fit(model=wrapper_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
 def kflod():
-    debug=True
+    debug=False
     val_size=0.1
     data_transforms = {
         "train": A.Compose(
@@ -191,7 +191,7 @@ def kflod():
     for i, (train_index, val_index) in enumerate(kf_l):
         if not debug:
             #logger = WandbLogger(project="waterflow", name="unet_pp_1")
-            wandb_logger = WandbLogger(
+            logger = WandbLogger(
                 project="ema-KFP",
                 # log_model="all",
                 name=f"KF{i}",
@@ -213,12 +213,12 @@ def kflod():
         train_dataloader = DataLoader(train_dataset, batch_size=8, num_workers=16, shuffle=True, pin_memory=True, drop_last=True)
         val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=16, shuffle=False, pin_memory=True)
 
-        trainer = L.Trainer(max_epochs=4, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,loss_checkpoint_callback,score_checkpoint_callback],log_every_n_steps=10,accumulate_grad_batches=1,gradient_clip_val=1)
+        trainer = L.Trainer(max_epochs=1, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,loss_checkpoint_callback,score_checkpoint_callback],log_every_n_steps=10,accumulate_grad_batches=1,gradient_clip_val=1)
         trainer.fit(model=wrapper_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
         wandb.finish()
 
 def seed_everything(seed):
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.envirdfn['PYTHONHASHSEED'] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
