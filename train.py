@@ -125,7 +125,6 @@ def main():
 
 def kflod():
     import multiprocessing
-    debug=True
     val_size=0.1
 
     ##### datalodar, kflod, train #################
@@ -223,7 +222,7 @@ def train_fn(i,train_index,val_index):
     train_dataset=SARDataset(
         data=[images_list[i] for i in train_index],
         targets=[label_list[i] for i in train_index],
-        data_transforms=None,
+        data_transforms=data_transforms['train'],
     )
     val_dataset=SARDataset(
         data=[images_list[i] for i in val_index],
@@ -231,8 +230,8 @@ def train_fn(i,train_index,val_index):
         data_transforms=None,
     )
 
-    train_dataloader = DataLoader(train_dataset, batch_size=8, num_workers=16, shuffle=True, pin_memory=False, drop_last=True)
-    val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=16, shuffle=False, pin_memory=False)
+    train_dataloader = DataLoader(train_dataset, batch_size=8, num_workers=16, shuffle=True, pin_memory=True, drop_last=True)
+    val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=16, shuffle=False, pin_memory=True)
 
     trainer = L.Trainer(max_epochs=400, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,loss_checkpoint_callback,score_checkpoint_callback],log_every_n_steps=10,accumulate_grad_batches=1,gradient_clip_val=1)
     trainer.fit(model=wrapper_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
