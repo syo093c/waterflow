@@ -69,14 +69,13 @@ class WrapperModel(L.LightningModule):
         #    return loss
 
     def configure_optimizers(self):
-        steps_per_ep = len(self.train_dl)
-        train_steps = len(self.train_dl) * self.trainer.max_epochs  # max epouch 100
+        train_steps=self.trainer.max_steps
         # optimizer = optim.AdamW(self.parameters(), lr=1e-5)
         optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate,betas=(0.9, 0.999), weight_decay=0.05)
         optimizer= EMAOptimizer(optimizer=optimizer,device=torch.device('cuda'))
         lr_scheduler = get_cosine_schedule_with_warmup(
             optimizer,
-            num_warmup_steps=int(steps_per_ep * self.trainer.max_epochs * 0.03/self.trainer.accumulate_grad_batches),
+            num_warmup_steps=int(train_steps * 0.03/self.trainer.accumulate_grad_batches),
             num_training_steps=int(train_steps/self.trainer.accumulate_grad_batches),
         )
         #lr_scheduler= get_polynomial_decay_schedule_with_warmup(

@@ -42,20 +42,20 @@ from sklearn.model_selection import KFold
 from dataset import SARDataset
 
 import wandb
-#============
-#mmseg
-import mmseg
-from mmseg.registry import MODELS
-import mmengine
-from mmengine import Config
-from mmseg.utils import register_all_modules
-register_all_modules()
+##============
+##mmseg
+#import mmseg
+#from mmseg.registry import MODELS
+#import mmengine
+#from mmengine import Config
+#from mmseg.utils import register_all_modules
+#register_all_modules()
 
 
 #==========
 def main():
-    debug=True
-    val_size=0.2
+    debug=False
+    val_size=0.1
     data_transforms = {
         "train": A.Compose(
             [
@@ -124,7 +124,7 @@ def main():
 
 def kflod():
     debug=True
-    val_size=0.2
+    val_size=0.1
     data_transforms = {
         "train": A.Compose(
             [
@@ -148,8 +148,8 @@ def kflod():
 
     ############ MODEL #####################################
     #unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
-    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-timm-maxvit_base_tf_512', encoder_weights="imagenet")
-    wrapper_model = WrapperModel(model=unet_pp,train_dataloader=train_dataloader,val_dataloader=val_dataloader,learning_rate=1e-4)
+    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights="imagenet")
+    wrapper_model = WrapperModel(model=unet_pp,learning_rate=1e-4)
 
     ############ HOOKS ###########################
     lr_monitor = LearningRateMonitor(logging_interval="step")
@@ -213,8 +213,7 @@ def kflod():
         train_dataloader = DataLoader(train_dataset, batch_size=8, num_workers=16, shuffle=True, pin_memory=True, drop_last=True)
         val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=16, shuffle=False, pin_memory=True)
 
-
-        trainer = L.Trainer(max_epochs=400, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,loss_checkpoint_callback,score_checkpoint_callback],log_every_n_steps=10,accumulate_grad_batches=1,gradient_clip_val=1)
+        trainer = L.Trainer(max_epochs=4, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,loss_checkpoint_callback,score_checkpoint_callback],log_every_n_steps=10,accumulate_grad_batches=1,gradient_clip_val=1)
         trainer.fit(model=wrapper_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
         wandb.finish()
 
@@ -229,4 +228,4 @@ def seed_everything(seed):
 
 if __name__ == "__main__":
     seed_everything(42)
-    main()
+    kflod()
