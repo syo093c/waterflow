@@ -27,7 +27,7 @@ def calculate_f1_score(predicted_map, ground_truth_map):
     return f1
 
 class WrapperModel(L.LightningModule):
-    def __init__(self, model, mode='train',learning_rate=1e-5,train_dataloader=None, val_dataloader=None) -> None:
+    def __init__(self, model, mode='train',learning_rate=3e-5) -> None:
         super().__init__()
         self.model = model
         self.learning_rate = learning_rate
@@ -35,9 +35,6 @@ class WrapperModel(L.LightningModule):
         self.dice_loss=DiceLoss(mode='binary',from_logits=True)
         if mode=='test':
             return
-        self.train_dl = train_dataloader
-        self.train_ds = train_dataloader.dataset
-        self.valid_ds = val_dataloader.dataset
 
         self.train_pred=[]
         self.val_pred=[]
