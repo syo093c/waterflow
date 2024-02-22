@@ -40,6 +40,7 @@ from glob import glob
 
 from sklearn.model_selection import KFold 
 from dataset import SARDataset
+import gc
 
 import wandb
 ##============
@@ -125,55 +126,6 @@ def main():
 def kflod():
     debug=False
     val_size=0.1
-    data_transforms = {
-        "train": A.Compose(
-            [
-                A.HorizontalFlip(p=0.5),
-                A.VerticalFlip(p=0.5),
-                A.OneOf(
-                    [
-                        A.Rotate(limit=(90,90)),
-                        A.Rotate(limit=(-90,-90)),
-                        A.Rotate(limit=(180,180)),
-                        A.Rotate(limit=(-180,-180)),
-                    ],
-                    p=0.5,
-                ),
-                A.OneOf([A.RandomResizedCrop(width=512,height=512),A.RandomGridShuffle()],p=0.3),
-                A.OneOf([A.GridDistortion(), A.OpticalDistortion()], p=0.3),
-            ],
-            p=1.0,
-        ),
-    }
-
-    ############ MODEL #####################################
-    #unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
-    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights="imagenet")
-    wrapper_model = WrapperModel(model=unet_pp,learning_rate=1e-4)
-
-    ############ HOOKS ###########################
-    lr_monitor = LearningRateMonitor(logging_interval="step")
-    progress_bar = RichProgressBar()
-    model_summary = RichModelSummary(max_depth=3)
-    loss_checkpoint_callback = ModelCheckpoint(
-        verbose=True,
-        filename=f"val_loss-" + "epoch_{epoch}-val_loss_{valid/loss:.4f}-score_{score/valid_f1:.4f}",
-        monitor="valid/loss",
-        mode="min",
-        save_top_k=3,
-        save_last=True,
-        save_weights_only=True,
-        auto_insert_metric_name=False,
-    )
-    score_checkpoint_callback = ModelCheckpoint(
-        verbose=True,
-        filename=f"val_score-" + "epoch_{epoch}-val_loss_{valid/loss:.4f}-socre_{score/valid_f1:.4f}",
-        monitor="score/train_f1",
-        save_top_k=3,
-        save_weights_only=True,
-        mode="max",
-        auto_insert_metric_name=False,
-    )
 
     ##### datalodar, kflod, train #################
 
@@ -189,6 +141,59 @@ def kflod():
     kf_l = kf_func.split(images_list)
 
     for i, (train_index, val_index) in enumerate(kf_l):
+        gc.collect()
+
+        ############ MODEL #####################################
+        #unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
+        unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights="imagenet")
+        wrapper_model = WrapperModel(model=unet_pp,learning_rate=1e-4)
+
+        data_transforms = {
+            "train": A.Compose(
+                [
+                    A.HorizontalFlip(p=0.5),
+                    A.VerticalFlip(p=0.5),
+                    A.OneOf(
+                        [
+                            A.Rotate(limit=(90,90)),
+                            A.Rotate(limit=(-90,-90)),
+                            A.Rotate(limit=(180,180)),
+                            A.Rotate(limit=(-180,-180)),
+                        ],
+                        p=0.5,
+                    ),
+                    A.OneOf([A.RandomResizedCrop(width=512,height=512),A.RandomGridShuffle()],p=0.3),
+                    A.OneOf([A.GridDistortion(), A.OpticalDistortion()], p=0.3),
+                ],
+                p=1.0,
+            ),
+        }
+
+
+        ############ HOOKS ###########################
+        lr_monitor = LearningRateMonitor(logging_interval="step")
+        progress_bar = RichProgressBar()
+        model_summary = RichModelSummary(max_depth=3)
+        loss_checkpoint_callback = ModelCheckpoint(
+            verbose=True,
+            filename=f"val_loss-" + "epoch_{epoch}-val_loss_{valid/loss:.4f}-score_{score/valid_f1:.4f}",
+            monitor="valid/loss",
+            mode="min",
+            save_top_k=3,
+            save_last=True,
+            save_weights_only=True,
+            auto_insert_metric_name=False,
+        )
+        score_checkpoint_callback = ModelCheckpoint(
+            verbose=True,
+            filename=f"val_score-" + "epoch_{epoch}-val_loss_{valid/loss:.4f}-socre_{score/valid_f1:.4f}",
+            monitor="score/train_f1",
+            save_top_k=3,
+            save_weights_only=True,
+            mode="max",
+            auto_insert_metric_name=False,
+        )
+
         if not debug:
             #logger = WandbLogger(project="waterflow", name="unet_pp_1")
             logger = WandbLogger(
@@ -216,6 +221,7 @@ def kflod():
         trainer = L.Trainer(max_epochs=400, precision="bf16-mixed", logger=logger, callbacks=[lr_monitor,loss_checkpoint_callback,score_checkpoint_callback],log_every_n_steps=10,accumulate_grad_batches=1,gradient_clip_val=1)
         trainer.fit(model=wrapper_model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
         wandb.finish()
+        gc.collect()
 
 def seed_everything(seed):
     os.environ['PYTHONHASHSEED'] = str(seed)
