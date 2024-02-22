@@ -7,33 +7,17 @@ import rasterio
 from PIL import Image
 import numpy as np
 from tqdm.auto import tqdm
-
-
+import albumentations as A
+from sklearn.model_selection import KFold 
 
 class SARDataset(Dataset):
-    def __init__(self,image_root,label_root,data_transforms=None,mode='train',val_size=0.2,seed=42):
-        self.mode=mode
-        images_list = sorted(list(glob(image_root + "*")))
-        label_list = sorted(list(glob(label_root + "*")))
+    def __init__(self,data,targets=None,data_transforms=None):
+        self.data=data
+        self.targets=targets
         self.transforms=data_transforms
 
-        images_train, images_val, labels_train, labels_val = train_test_split(
-            images_list,
-            label_list,
-            test_size=val_size,
-            #stratify=label_list,
-            random_state=seed,
-        )
-        self.images_train =   sorted(images_train)
-        self.images_val   =   sorted(images_val)
-        self.labels_train =   sorted(labels_train)
-        self.labels_val = sorted(labels_val)
-
     def __len__(self):
-        if self.mode=='train':
-            return len(self.images_train)
-        elif self.mode=='val':
-            return len(self.images_val)
+            return len(self.data)
 
     def _sar_normalization(self,sar_data):
         """
@@ -63,12 +47,8 @@ class SARDataset(Dataset):
         return sar_data
 
     def __getitem__(self, index):
-        if self.mode=='train':
-            fpath=self.images_train[index]
-            lpath=self.labels_train[index]
-        if self.mode=='val':
-            fpath=self.images_val[index]
-            lpath=self.labels_val[index]
+        fpath=self.data[index]
+        lpath=self.targets[index]
 
         # sar_data = rasterio.open(fpath,dtype=rasterio.uint8)
         sar_data = rasterio.open(fpath)
@@ -78,20 +58,13 @@ class SARDataset(Dataset):
         # normalization
         sar_data=self._sar_normalization(sar_data)
 
-        # sar_data[sar_data<0]=0
-        # sar_data=min_max_normalize_per_channel(sar_data)
-
         # data augmentation
         if self.transforms:
             sar_data=np.transpose(sar_data, (1, 2, 0))
             transformed_data = self.transforms(image=sar_data,mask=label_map)
-
             sar_data=transformed_data['image']
             sar_data=np.transpose(sar_data, (2, 0, 1))
             label_map=transformed_data['mask']
-
-        # normalization
-        #sar_data=self._sar_normalization(sar_data)
 
         data = {
             # c, w, h
@@ -104,21 +77,24 @@ def build_dataloader(batch_size=4,num_workers=2,val_size=0.2,seed=42,data_transf
     DATASET_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/'
     TRACK1_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track1/'
     TRACK2_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track2/'    
+    images_list = sorted(list(glob(TRACK1_ROOT+'train/images/' + "*")))
+    label_list = sorted(list(glob(TRACK1_ROOT+'train/labels/' + "*")))
+    images_train, images_val, labels_train, labels_val = train_test_split(
+        images_list,
+        label_list,
+        test_size=val_size,
+        random_state=seed,
+    )
 
     train_dataset=SARDataset(
-        image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",
-        label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/labels/",
-        mode='train',
-        val_size=val_size,
-        seed=seed,
+        data=images_train,
+        targets=labels_train,
         data_transforms=data_transforms
     )
     val_dataset=SARDataset(
-        image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",
-        label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/labels/",
-        mode='val',
-        val_size=val_size,
-        seed=seed,
+        data=images_val,
+        targets=labels_val,
+        data_transforms=None
     )
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=True)
@@ -150,23 +126,34 @@ def build_dataloader_w_pseudo(batch_size=4,num_workers=2,val_size=0.2,seed=42,da
     val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=num_workers, shuffle=False, pin_memory=True)
     return train_dataloader,val_dataloader
 
-def main():
-    train_dataset=SARDataset(
-        image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",
-        label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/labels/",
-        mode='train',
-        val_size=1e-10
+def test_kflod():
+    DATASET_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/'
+    TRACK1_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track1/'
+    TRACK2_ROOT='/home/syo/work/2024_IEEE_GRSS/dataset/Track2/'    
+    images_list = sorted(list(glob(TRACK1_ROOT+'train/images/' + "*")))
+    label_list = sorted(list(glob(TRACK1_ROOT+'train/labels/' + "*")))
+
+    kf_func = KFold(
+        n_splits=int(1 / 0.1), random_state=42, shuffle=True
     )
-    val_dataset=SARDataset(
-        image_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/",
-        label_root="/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/labels/",
-        mode='val',
-        val_size=1e-10
-    )
-    for i in tqdm(train_dataset):
+    kf_l = kf_func.split(images_list)
+
+    for i, (train_index, val_index) in enumerate(kf_l):
+        train_dataset=SARDataset(
+            data=[images_list[i] for i in train_index],
+            targets=[label_list[i] for i in train_index],
+            data_transforms=None,
+        )
+        val_dataset=SARDataset(
+            data=[images_list[i] for i in val_index],
+            targets=[label_list[i] for i in val_index],
+            data_transforms=None,
+        )
+        for d in tqdm(train_dataset):
+            pass
         print(i)
-    for i in tqdm(val_dataset):
-        pass
+        #train_dataloader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=True)
+        #val_dataloader = DataLoader(val_dataset, batch_size=1, num_workers=num_workers, shuffle=False, pin_memory=True)
 
 if __name__ == '__main__':
-    main()
+    test_kflod()
