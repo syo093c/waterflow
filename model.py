@@ -5,7 +5,6 @@ from lightning.pytorch.utilities.types import OptimizerLRScheduler
 from transformers import get_cosine_schedule_with_warmup
 from transformers import get_polynomial_decay_schedule_with_warmup
 from torch import optim
-import ipdb
 import numpy as np
 import torch.nn.functional as F
 from sklearn.metrics import f1_score
@@ -13,7 +12,9 @@ from sklearn.metrics import precision_recall_fscore_support
 from torch import nn
 import torch
 from segmentation_models_pytorch.losses import DiceLoss
-
+from torchmetrics import F1Score
+import gc
+from ema import EMAOptimizer
 
 def calculate_f1_score(predicted_map, ground_truth_map):
     # Flatten the maps to 1D arrays
@@ -38,6 +39,13 @@ class WrapperModel(L.LightningModule):
         self.train_ds = train_dataloader.dataset
         self.valid_ds = val_dataloader.dataset
 
+        self.train_pred=[]
+        self.val_pred=[]
+        self.train_label=[]
+        self.val_label=[]
+
+        self.f1=F1Score(task="binary")
+
     def forward(self, input):
         output = self.model(input)
         return output
@@ -53,6 +61,10 @@ class WrapperModel(L.LightningModule):
         self.log("train/bce_loss", bce_loss)
         self.log("train/dice_loss", dice_loss)
         # self.log("lr",self.lr_schedulers().get_lr()[0])
+
+        self.train_pred.append(output.detach().cpu())
+        self.train_label.append(label.detach().cpu())
+
         return loss
         #if self.trainer.current_epoch < self.trainer.max_epochs * 0.4:
         #    return bce_loss
@@ -64,6 +76,7 @@ class WrapperModel(L.LightningModule):
         train_steps = len(self.train_dl) * self.trainer.max_epochs  # max epouch 100
         # optimizer = optim.AdamW(self.parameters(), lr=1e-5)
         optimizer = optim.AdamW(self.parameters(), lr=self.learning_rate,betas=(0.9, 0.999), weight_decay=0.05)
+        optimizer= EMAOptimizer(optimizer=optimizer,device=torch.device('cuda'))
         lr_scheduler = get_cosine_schedule_with_warmup(
             optimizer,
             num_warmup_steps=int(steps_per_ep * self.trainer.max_epochs * 0.03/self.trainer.accumulate_grad_batches),
@@ -89,39 +102,25 @@ class WrapperModel(L.LightningModule):
         self.log("valid/bce_loss", bce_loss)
         self.log("valid/dice_loss", dice_loss)
 
-    def get_score(self, thred=0.5,type="valid"):
-        preds = []
-        labels = []
-        if type == "valid":
-            ds = self.valid_ds
-        elif type == "train":
-            ds = self.train_ds
+        self.val_pred.append(output.detach().cpu())
+        self.val_label.append(label.detach().cpu())
+    
+    def on_train_epoch_end(self):
+        train_pred = (torch.cat(self.train_pred).sigmoid()>0.5).float()
+        train_label = torch.cat(self.train_label)
+        self.train_pred.clear()
+        self.train_label.clear()
 
-        with torch.no_grad():
-            for batch in ds:
-                data = batch["data"].unsqueeze(0).cuda()
-                outputs = self.forward(data)
-                outputs = F.sigmoid(outputs)
-                preds.append(outputs.detach().cpu().numpy())
-                labels.append(batch['label'].unsqueeze(0).detach().cpu().numpy())
-        preds = np.vstack(preds)
-        labels = np.vstack(labels)
-        binary_map = (preds > thred).astype(int)
-        precision, recall, f1_score, _ = precision_recall_fscore_support(labels.flatten(), binary_map.flatten(), average='binary')
-        return precision, recall, f1_score
+        f1_score = self.f1(train_pred,train_label)
+        gc.collect()
+        self.log("score/train_f1", f1_score)
 
     def on_validation_epoch_end(self):
-        step=19
-        if self.current_epoch % step == step-1:
-        #if self.current_epoch >= self.trainer.max_epochs -1:
-        #if True:
-            precision, recall, f1_score = self.get_score(type="valid")
-            self.log("score/valid_pr", precision)
-            self.log("score/valid_re", recall)
-            self.log("score/valid_f1", f1_score)
-            precision, recall, f1_score = self.get_score(type="train")
-            self.log("score/train_pr", precision)
-            self.log("score/train_re", recall)
-            self.log("score/train_f1", f1_score)
-        else:
-            pass
+        val_pred = (torch.cat(self.val_pred).sigmoid()>0.5).float()
+        val_label = torch.cat(self.val_label)
+        self.val_pred.clear()
+        self.val_label.clear()
+
+        f1_score = self.f1(val_pred,val_label)
+        gc.collect()
+        self.log("score/valid_f1", f1_score)
