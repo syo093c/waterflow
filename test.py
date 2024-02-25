@@ -63,21 +63,36 @@ def main():
     if not os.path.exists(output_path):
         os.mkdir(output_path)
 
-    #unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
-    #model1=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/test/epoch=795-step=187060.ckpt',model=unet_pp,mode='test',map_location=torch.device("cuda"))
-    #model1.eval()
+    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='timm-resnest269e', encoder_weights="imagenet")
+    m1=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights=None)
+    m2=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights=None)
+    m3=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights=None)
+    m4=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_base_tf_512', encoder_weights=None)
 
-    unet_pp=smp.create_model(arch='unetplusplus',classes=1,in_channels=6,encoder_name='tu-maxvit_large_tf_512', encoder_weights=None)
-    model1=WrapperModel.load_from_checkpoint('/home/syo/work/2024_IEEE_GRSS/src/weights/maxvit-800e/epoch=791-step=72864.ckpt',model=unet_pp,mode='test',map_location=torch.device("cuda"))
+    PATH1='/home/syo/work/2024_IEEE_GRSS/src/weights/kfold/nybho6h3/val_loss-epoch_370-val_loss_0.1409-score_0.9035.ckpt'
+    PATH2='/home/syo/work/2024_IEEE_GRSS/src/weights/kfold/pouoecch/val_loss-epoch_341-val_loss_0.1199-score_0.9385.ckpt'
+    PATH3='/home/syo/work/2024_IEEE_GRSS/src/weights/kfold/qaedzm0a/val_loss-epoch_344-val_loss_0.1344-score_0.9170.ckpt'
+    PATH4='/home/syo/work/2024_IEEE_GRSS/src/weights/kfold/vw5mt1dv/val_score-epoch_391-val_loss_0.1095-socre_0.9429.ckpt'
+
+    model1=WrapperModel.load_from_checkpoint(PATH1,model=m1,mode='test',map_location=torch.device("cuda"))
+    model2=WrapperModel.load_from_checkpoint(PATH2,model=m2,mode='test',map_location=torch.device("cuda"))
+    model3=WrapperModel.load_from_checkpoint(PATH3,model=m3,mode='test',map_location=torch.device("cuda"))
+    model4=WrapperModel.load_from_checkpoint(PATH4,model=m4,mode='test',map_location=torch.device("cuda"))
     model1.eval()
+    model2.eval()
+    model3.eval()
+    model4.eval()
+
     if TTA:
         model1 = tta.SegmentationTTAWrapper(model1, transforms)
+        model2 = tta.SegmentationTTAWrapper(model2, transforms)
+        model3 = tta.SegmentationTTAWrapper(model3, transforms)
+        model4 = tta.SegmentationTTAWrapper(model4, transforms)
 
 
     image_root=pathlib.Path('/home/syo/work/2024_IEEE_GRSS/dataset/Track1/val/images/')
-    #image_root=pathlib.Path('/home/syo/work/2024_IEEE_GRSS/dataset/Track1/train/images/')
     images_list = sorted(list(image_root.glob('*')))
-    thred=0.1
+    thred=0.47
 
     for i in tqdm(images_list):
         sar_data = rasterio.open(i).read()
@@ -87,14 +102,15 @@ def main():
                 sar_data=torch.tensor(sar_data,dtype=torch.float32).unsqueeze(0).cuda()
                 outputs1=model1.forward(sar_data)
                 outputs1 = F.sigmoid(outputs1)
-                outputs=outputs1
-                #outputs2=model2.forward(sar_data)
-                #outputs2 = F.sigmoid(outputs2)
+                outputs2=model2.forward(sar_data)
+                outputs2 = F.sigmoid(outputs2)
+                outputs3=model3.forward(sar_data)
+                outputs3 = F.sigmoid(outputs3)
+                outputs4=model4.forward(sar_data)
+                outputs4 = F.sigmoid(outputs4)
 
-                #outputs3=model3.forward(sar_data)
-                #outputs3 = F.sigmoid(outputs3)
-
-                #outputs=0.34*outputs1+0.34*outputs2+0.32*outputs3
+                outputs=0.25*outputs1+0.25*outputs2+0.25*outputs3+0.25*outputs4
+                #outputs=outputs4
                 preds=outputs.detach().cpu().numpy().squeeze(0)
 
         binary_map = (preds > thred).astype(np.uint8)[0]

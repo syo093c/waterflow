@@ -202,7 +202,7 @@ def train_fn(i,train_index,val_index):
     score_checkpoint_callback = ModelCheckpoint(
         verbose=True,
         filename=f"val_score-" + "epoch_{epoch}-val_loss_{valid/loss:.4f}-socre_{score/valid_f1:.4f}",
-        monitor="score/train_f1",
+        monitor="score/valid_f1",
         save_top_k=3,
         save_weights_only=True,
         mode="max",
